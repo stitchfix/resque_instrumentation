@@ -30,26 +30,26 @@ module Resque
         %w(before_enqueue after_enqueue before_dequeue
         after_dequeue before_perform after_perform).each do |hook|
           define_method("#{hook}_with_instrumentation") do |*args|
-            instrument("resque.#{hook}", queue: @queue.to_s, job: self.name, args: args)
+            instrument("#{hook}.resque", queue: @queue.to_s, job: self.name, args: args)
           end
         end
 
         def around_perform_with_instrumentation(*args)
-          instrument("resque.perform", queue: @queue.to_s, job: self.name, args: args) do
+          instrument("perform.resque", queue: @queue.to_s, job: self.name, args: args) do
             yield
           end
         end
 
         def on_failure_with_instrumentation(e, *args)
-          instrument("resque.on_failure", queue: @queue.to_s, job: self.name, exception: e, args: args)
+          instrument("on_failure.resque", queue: @queue.to_s, job: self.name, exception: e, args: args)
         end
       end
     end
   end
 end
 
-Resque.before_first_fork = proc { Resque::Plugins::Instrumentation.instrument("resque.before_first_fork") }
-Resque.before_fork = proc { Resque::Plugins::Instrumentation.instrument("resque.before_fork") }
-Resque.after_fork = proc { Resque::Plugins::Instrumentation.instrument("resque.after_fork") }
-Resque.before_pause = proc { Resque::Plugins::Instrumentation.instrument("resque.before_pause") }
-Resque.after_pause = proc { Resque::Plugins::Instrumentation.instrument("resque.after_pause") }
+Resque.before_first_fork = proc { Resque::Plugins::Instrumentation.instrument("before_first_fork.resque") }
+Resque.before_fork = proc { Resque::Plugins::Instrumentation.instrument("before_fork.resque") }
+Resque.after_fork = proc { Resque::Plugins::Instrumentation.instrument("after_fork.resque") }
+Resque.before_pause = proc { Resque::Plugins::Instrumentation.instrument("before_pause.resque") }
+Resque.after_pause = proc { Resque::Plugins::Instrumentation.instrument("after_pause.resque") }

@@ -1,7 +1,7 @@
 require File.dirname(__FILE__) + '/test_helper'
 require "minitest/autorun"
 
-class InstrumentationTest < MiniTest::Unit::TestCase
+class InstrumentationTest < MiniTest::Test
 
   def setup
     @instrumentor = TestInstrumentor
@@ -10,29 +10,28 @@ class InstrumentationTest < MiniTest::Unit::TestCase
 
   def test_fork
     worker = Resque::Worker.new(:test)
-    job = Resque::Job.new('test', { 'class' => 'InstrumentedJob', 'args' => ['bar']})
-    worker.send(:startup)
-    worker.fork(job)
-    worker.perform(job)
+    Resque::Job.create(:test, InstrumentedJob)
+    worker.work(0)
 
-    notification = @instrumentor.notifications['resque.before_first_fork']
+    notification = @instrumentor.notifications['before_first_fork.resque']
     assert !notification.nil?, "before_first_fork should be instrumented"
 
-    notification = @instrumentor.notifications['resque.before_fork']
+    notification = @instrumentor.notifications['before_fork.resque']
     assert !notification.nil?, "before_fork should be instrumented"
 
-    notification = @instrumentor.notifications['resque.after_fork']
+    # FIXME: this test is failing, not using `fork_per_job`?
+    notification = @instrumentor.notifications['after_fork.resque']
     assert !notification.nil?, "after_fork should be instrumented"
   end
 
   def test_enqueue
     Resque.enqueue(InstrumentedJob, 'foo')
 
-    notification = @instrumentor.notifications['resque.before_enqueue']
+    notification = @instrumentor.notifications['before_enqueue.resque']
     assert !notification.nil?, "before_enqueue should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['foo'] }
 
-    notification = @instrumentor.notifications['resque.after_enqueue']
+    notification = @instrumentor.notifications['after_enqueue.resque']
     assert !notification.nil?, "after_enqueue should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['foo'] }
   end
@@ -41,11 +40,11 @@ class InstrumentationTest < MiniTest::Unit::TestCase
     Resque.enqueue(InstrumentedJob, 'foo')
     Resque.dequeue(InstrumentedJob, 'bar')
 
-    notification = @instrumentor.notifications['resque.before_dequeue']
+    notification = @instrumentor.notifications['before_dequeue.resque']
     assert !notification.nil?, "before_dequeue should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['bar'] }
 
-    notification = @instrumentor.notifications['resque.after_dequeue']
+    notification = @instrumentor.notifications['after_dequeue.resque']
     assert !notification.nil?, "after_dequeue should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['bar'] }
   end
@@ -53,15 +52,15 @@ class InstrumentationTest < MiniTest::Unit::TestCase
   def test_perform
     Resque::Job.new('test', { 'class' => 'InstrumentedJob', 'args' => ['bar']}).perform
 
-    notification = @instrumentor.notifications['resque.before_perform']
+    notification = @instrumentor.notifications['before_perform.resque']
     assert !notification.nil?, "before_perform should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['bar'] }
 
-    notification = @instrumentor.notifications['resque.after_perform']
+    notification = @instrumentor.notifications['after_perform.resque']
     assert !notification.nil?, "after_perform should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['bar'] }
 
-    notification = @instrumentor.notifications['resque.perform']
+    notification = @instrumentor.notifications['perform.resque']
     assert !notification.nil?, "around_perform should be instrumented"
     assert_equal notification, { queue: 'test', job: 'InstrumentedJob', args: ['bar'] }
   end
@@ -72,7 +71,7 @@ class InstrumentationTest < MiniTest::Unit::TestCase
     rescue Exception => raised_exception
     end
 
-    notification = @instrumentor.notifications['resque.on_failure']
+    notification = @instrumentor.notifications['on_failure.resque']
     assert !notification.nil?, "on_failure should be instrumented"
     instrumented_exception = notification.delete(:exception)
     assert !instrumented_exception.nil?, "on_failure instrumentation should propagate the exception"
